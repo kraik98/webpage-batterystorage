@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>BatteryStrategy – Beating RES Cannibalization</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #060809;
+      --bg-alt: #0f1115;
+      --card: #151821;
+      --card-soft: #1b1f2b;
+      --text: #f7f7fb;
+      --muted: #a2a6b7;
+      --accent: #3dff8e;
+      --accent-soft: rgba(61,255,142,0.12);
+      --danger: #ff4f6a;
+      --danger-soft: rgba(255,79,106,0.12);
+      --border-subtle: rgba(255,255,255,0.06);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-pill: 999px;
+      --shadow-soft: 0 24px 60px rgba(0,0,0,0.55);
+      --shadow-subtle: 0 14px 36px rgba(0,0,0,0.45);
+      --max-width: 1080px;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle at top, #151821 0, #050608 55%);
+      color: var(--text);
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      line-height: 1.6;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    img {
+      max-width: 100%;
+      display: block;
+    }
+
+    .page {
+      min-height: 100vh;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(18px);
+      background: linear-gradient(to bottom, rgba(5,6,10,0.95), rgba(5,6,10,0.6));
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .nav-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .logo-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      background: rgba(9,11,18,0.9);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .logo-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: conic-gradient(from 180deg, #3dff8e, #f9ff72, #ff4f6a, #3dff8e);
+      box-shadow: 0 0 14px rgba(61,255,142,0.8);
+    }
+
+    .logo-text-main {
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      font-size: 13px;
+      text-transform: uppercase;
+    }
+
+    .logo-text-sub {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 16px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    .nav-links a {
+      padding: 4px 0;
+      position: relative;
+    }
+
+    .nav-links a::after {
+      content: "";
+      position: absolute;
+      inset-inline: 0;
+      bottom: -3px;
+      height: 2px;
+      border-radius: 999px;
+      transform-origin: center;
+      transform: scaleX(0);
+      background: linear-gradient(90deg, var(--accent), #f9ff72);
+      transition: transform 0.18s ease-out;
+    }
+
+    .nav-links a:hover::after {
+      transform: scaleX(1);
+    }
+
+    .nav-cta {
+      padding: 8px 14px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 12px;
+      color: var(--accent);
+      background: rgba(12,16,24,0.8);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: default;
+    }
+
+    .nav-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px rgba(61,255,142,0.9);
+    }
+
+    main {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+
+    section {
+      padding: 80px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2.5fr);
+      gap: 40px;
+      align-items: center;
+      padding-top: 48px;
+    }
+
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      background: rgba(15,18,26,0.9);
+      border: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 16px;
+    }
+
+    .hero-tag span {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .hero-title {
+      font-size: clamp(40px, 5vw, 60px);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      margin: 0 0 16px;
+    }
+
+    .hero-title span {
+      background: linear-gradient(120deg, #ff4f6a, #f9ff72);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .hero-lede {
+      font-size: 18px;
+      color: var(--muted);
+      max-width: 34rem;
+      margin-bottom: 20px;
+    }
+
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .pill {
+      padding: 4px 12px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(22,26,37,0.9);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    .btn-primary {
+      padding: 11px 20px;
+      border-radius: var(--radius-pill);
+      border: none;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-size: 12px;
+      background: linear-gradient(120deg, var(--accent), #f9ff72);
+      color: #050608;
+      box-shadow: var(--shadow-soft);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary span {
+      font-size: 16px;
+    }
+
+    .btn-ghost {
+      padding: 10px 14px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(2,4,8,0.7);
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .btn-ghost-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--danger);
+    }
+
+    .hero-footnote {
+      margin-top: 18px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .hero-footnote strong {
+      color: var(--accent);
+    }
+
+    .hero-visual {
+      position: relative;
+    }
+
+    .hero-card {
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      background: radial-gradient(circle at top, #2a1014, #050608 55%);
+      min-height: 320px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(255,255,255,0.08);
+      position: relative;
+      isolation: isolate;
+      padding: 22px 22px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .hero-image {
+      position: absolute;
+      inset: 0;
+      opacity: 0.84;
+      mix-blend-mode: screen;
+      background-image: url("https://images.unsplash.com/photo-1543165365-07232a9d7120?auto=format&fit=crop&w=1200&q=80");
+      background-size: cover;
+      background-position: center;
+      filter: saturate(1.4) contrast(1.1);
+      z-index: -1;
+      transform: scale(1.05);
+    }
+
+    .hero-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      background: rgba(0,0,0,0.68);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .hero-label span {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--danger);
+      box-shadow: 0 0 10px rgba(255,79,106,0.9);
+    }
+
+    .hero-quote {
+      font-size: 18px;
+      font-weight: 600;
+      max-width: 19rem;
+    }
+
+    .hero-quote em {
+      color: #ffb2c6;
+      font-style: normal;
+    }
+
+    .hero-subline {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .hero-metrics {
+      display: flex;
+      gap: 14px;
+      margin-top: 20px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    .metric-pill {
+      padding: 6px 10px;
+      border-radius: var(--radius-pill);
+      background: rgba(0,0,0,0.65);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .metric-pill strong {
+      display: block;
+      font-size: 15px;
+      color: #fff;
+    }
+
+    .floating-card {
+      position: absolute;
+      bottom: -20px;
+      right: -10px;
+      width: 200px;
+      padding: 12px 13px;
+      background: rgba(5,6,12,0.98);
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: var(--shadow-subtle);
+      font-size: 12px;
+      color: var(--muted);
+      display: grid;
+      gap: 6px;
+    }
+
+    .floating-card-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+    }
+
+    .floating-chart {
+      height: 60px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(61,255,142,0.06), rgba(255,79,106,0.6));
+      position: relative;
+      overflow: hidden;
+    }
+
+    .floating-chart::after {
+      content: "";
+      position: absolute;
+      inset: 16px 26px 9px 16px;
+      border-radius: 999px;
+      border: 1px dashed rgba(255,255,255,0.28);
+      opacity: 0.45;
+    }
+
+    .floating-chart-line {
+      position: absolute;
+      left: 10px;
+      right: 28px;
+      top: 34px;
+      height: 2px;
+      background: linear-gradient(90deg, #f9ff72, #ff4f6a);
+      transform-origin: left;
+      transform: skewX(-18deg);
+      box-shadow: 0 0 12px rgba(255,79,106,0.8);
+    }
+
+    .floating-caption {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .section-eyebrow {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .section-title {
+      font-size: 32px;
+      letter-spacing: -0.03em;
+      margin: 0 0 16px;
+    }
+
+    .section-title span {
+      color: var(--accent);
+    }
+
+    .section-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(0, 1.3fr);
+      gap: 32px;
+      align-items: flex-start;
+    }
+
+    .section-card {
+      padding: 20px 22px;
+      background: var(--card);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-subtle);
+    }
+
+    .section-card.soft {
+      background: var(--card-soft);
+    }
+
+    .section-card h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 18px;
+      letter-spacing: -0.01em;
+    }
+
+    .section-card h3 span {
+      color: var(--accent);
+    }
+
+    .section-card p {
+      margin: 0 0 10px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .section-card ul {
+      margin: 6px 0 4px 18px;
+      padding: 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .section-card li + li {
+      margin-top: 4px;
+    }
+
+    .badge-danger {
+      display: inline-flex;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      background: var(--danger-soft);
+      color: var(--danger);
+      margin-top: 6px;
+    }
+
+    .badge-accent {
+      display: inline-flex;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      background: var(--accent-soft);
+      color: var(--accent);
+      margin-top: 6px;
+    }
+
+    .problem-list {
+      margin: 10px 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .pill-row span {
+      padding: 3px 9px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(15,18,26,0.9);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .person-card {
+      padding: 16px 16px 14px;
+      border-radius: 18px;
+      background: var(--card);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 0, #f9ff72, #ff4f6a);
+      margin-bottom: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .avatar::after {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border-radius: inherit;
+      background: radial-gradient(circle at 30% 0, #0f1118, #050608);
+    }
+
+    
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 999px;
+      display: block;
+      position: relative;
+      z-index: 1;
+    }
+    .avatar.avatar-photo::after { display: none; }
+
+
+    .avatar-initial {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .person-name {
+      font-weight: 600;
+      font-size: 15px;
+      margin-bottom: 3px;
+    }
+
+    .person-role {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .person-tagline {
+      font-size: 11px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 6px;
+    }
+
+    .person-hobbies {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.2fr);
+      gap: 26px;
+      align-items: flex-start;
+    }
+
+    .big-text {
+      font-size: 19px;
+      color: var(--muted);
+      max-width: 34rem;
+    }
+
+    .solutions-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .solution-pill {
+      padding: 10px 12px;
+      border-radius: 18px;
+      background: var(--card);
+      border: 1px solid var(--border-subtle);
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .solution-pill strong {
+      color: #fff;
+    }
+
+    .highlight-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .highlight-bad {
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      background: var(--danger-soft);
+      color: var(--danger);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .highlight-good {
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .value-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr);
+      gap: 22px;
+      align-items: stretch;
+    }
+
+    .value-list {
+      margin: 10px 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .side-note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .cta {
+      text-align: center;
+      max-width: 620px;
+      margin: 0 auto;
+    }
+
+    .cta h2 {
+      font-size: 32px;
+      margin-bottom: 10px;
+      letter-spacing: -0.03em;
+    }
+
+    .cta p {
+      color: var(--muted);
+      font-size: 15px;
+      margin-bottom: 26px;
+    }
+
+    .cta-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .footer {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 28px 20px 40px;
+      font-size: 12px;
+      color: var(--muted);
+      border-top: 1px solid rgba(255,255,255,0.04);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .footer span strong {
+      color: var(--accent);
+    }
+
+    @media (max-width: 960px) {
+      .hero {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .hero-visual {
+        order: -1;
+      }
+      .hero-card {
+        min-height: 260px;
+      }
+      section {
+        padding: 64px 0;
+      }
+      .section-grid,
+      .split,
+      .value-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 720px) {
+      main {
+        padding-inline: 16px;
+      }
+      .nav-inner {
+        padding-inline: 16px;
+      }
+      .hero-title {
+        font-size: 36px;
+      }
+      .hero-lede {
+        font-size: 16px;
+      }
+      .nav-links {
+        display: none;
+      }
+      .hero-quote {
+        font-size: 16px;
+      }
+      .section-title {
+        font-size: 26px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="nav">
+      <div class="nav-inner">
+        <div class="logo-mark">
+          <div class="logo-dot"></div>
+          <div>
+            <div class="logo-text-main">BatteryStrategy</div>
+            <div class="logo-text-sub">RES cannibalization fix</div>
+          </div>
+        </div>
+        <nav class="nav-links" aria-label="Main">
+          <a href="#problem">Problem</a>
+          <a href="#impact">Why it matters</a>
+          <a href="#failed">Why old tools fail</a>
+          <a href="#solution">Our solution</a>
+          <a href="#value">Value</a>
+        </nav>
+        <div class="nav-cta">
+          <span class="nav-dot"></span>
+          Fundraising Q2&nbsp;2025
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- HERO -->
+      <section class="hero" id="top">
+        <div>
+          <div class="hero-tag">
+            <span>RES</span> cannibalization in the energy market
+          </div>
+          <h1 class="hero-title">
+            Have you heard about <span>cannibalization</span>?
+          </h1>
+          <p class="hero-lede">
+            No, not the horror-movie kind. We’re talking about how adding more renewables can actually
+            destroy the revenue of all renewables – and what we can do about it in the Baltics.
+          </p>
+          <div class="pill-list">
+            <div class="pill">Baltic power markets</div>
+            <div class="pill">Energy economics</div>
+            <div class="pill">Storage &amp; flexibility</div>
+            <div class="pill">Real investment cases</div>
+          </div>
+          <div class="hero-actions">
+            <a href="#solution" class="btn-primary">
+              See the real fix <span>→</span>
+            </a>
+            <a href="#team" class="btn-ghost">
+              <span class="btn-ghost-dot"></span>
+              Meet the team
+            </a>
+          </div>
+          <p class="hero-footnote">
+            Built as part of <strong>MNI5160 Entrepreneurship, Innovation &amp; Technology Management</strong> – now turning into a real venture.
+          </p>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <div class="hero-card">
+            <div class="hero-image"></div>
+            <div class="hero-label">
+              <span></span> Market risk snapshot
+            </div>
+            <div class="hero-quote">
+              When the sun shines and wind blows, prices crash. <em>So do RES revenues.</em>
+            </div>
+            <div class="hero-subline">
+              Cannibalization = renewables undercut their own earnings in energy-only markets.
+            </div>
+            <div class="hero-metrics">
+              <div class="metric-pill">
+                <strong>-60%</strong>
+                capture price vs average
+              </div>
+              <div class="metric-pill">
+                <strong>0 €</strong>
+                &lt;= price hours
+              </div>
+            </div>
+          </div>
+          <div class="floating-card">
+            <div class="floating-card-title">RES cannibalization curve</div>
+            <div class="floating-chart">
+              <div class="floating-chart-line"></div>
+            </div>
+            <div class="floating-caption">
+              More RES → steeper price drops → weaker business case for new projects.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TEAM -->
+      <section id="team">
+        <div class="section-eyebrow">Team</div>
+        <h2 class="section-title">We’re not who you think – <span>let’s connect</span>.</h2>
+        <p class="big-text">
+          We are early-stage researchers and practitioners who live somewhere between power systems, economics
+          and real-world project development. We care about storage not as a buzzword, but as bankable MWs on the grid.
+        </p>
+        <div class="team-grid">
+          <article class="person-card">
+            <div class="avatar avatar-photo"><img src="avatar_egle.png" alt="Egle Vogt"></div>
+            <div class="person-name">Egle Vogt</div>
+            <div class="person-tagline">Mechanical &amp; industrial engineering</div>
+            <div class="person-role">PhD researcher – flexibility, storage &amp; energy systems.</div>
+            <div class="person-hobbies">Hobbies: history, yoga, painting.</div>
+          </article>
+          <article class="person-card">
+            <div class="avatar avatar-photo"><img src="avatar_athina.png" alt="Athina Isadora Lepvalts"></div>
+            <div class="person-name">Athina Isadora Lepvalts</div>
+            <div class="person-tagline">Social work &amp; innovation policy</div>
+            <div class="person-role">MA – public administration and innovation, stakeholder engagement.</div>
+            <div class="person-hobbies">Hobbies: padel, cooking, dancing.</div>
+          </article>
+          <article class="person-card">
+            <div class="avatar avatar-photo"><img src="avatar_arushi.png" alt="Arushi David"></div>
+            <div class="person-name">Arushi David</div>
+            <div class="person-tagline">Game design &amp; sustainability</div>
+            <div class="person-role">Designs intuitive ways to explain complex market risks.</div>
+            <div class="person-hobbies">Hobbies: painting, photography, gardening.</div>
+          </article>
+          <article class="person-card">
+            <div class="avatar avatar-photo"><img src="avatar_krisopher.png" alt="Krisopher Raik"></div>
+            <div class="person-name">Krisopher Raik</div>
+            <div class="person-tagline">Energy economics &amp; markets</div>
+            <div class="person-role">Early-stage researcher – power engineering &amp; market design.</div>
+            <div class="person-hobbies">Hobbies: football, BJJ, guitar.</div>
+          </article>
+          <article class="person-card">
+            <div class="avatar avatar-photo"><img src="avatar_johan.png" alt="Johan Felix Blumfeldt"></div>
+            <div class="person-name">Johan Felix Blumfeldt</div>
+            <div class="person-tagline">Construction &amp; project delivery</div>
+            <div class="person-role">MSc – construction engineering and project management.</div>
+            <div class="person-hobbies">Hobbies: boxing, padel, entrepreneurship.</div>
+          </article>
+        </div>
+      </section>
+
+      <!-- PROBLEM -->
+      <section id="problem">
+        <div class="section-grid">
+          <div>
+            <div class="section-eyebrow">Back to the scary part</div>
+            <h2 class="section-title">Cannibalization in the <span>energy market</span> – what?</h2>
+            <p class="big-text">
+              In an energy-only market, renewables bid close to zero marginal cost. That’s great for consumers,
+              but once RES share grows, prices start collapsing exactly when the sun shines and wind blows.
+            </p>
+            <ul class="problem-list">
+              <li>Everybody wants clean energy → more RES capacity enters the market.</li>
+              <li>The more RES, the lower the electricity price during high-output hours.</li>
+              <li>New RES plants reduce earnings for all existing RES plants.</li>
+            </ul>
+            <div class="highlight-row">
+              <div class="highlight-bad">RES cannibalization in the energy market</div>
+            </div>
+          </div>
+          <div>
+            <div class="section-card soft">
+              <h3><span>Visualizing</span> the effect</h3>
+              <p>
+                Think of a curve where the market value of RES (capture price) falls as RES share grows.
+                At first it’s fine – then suddenly value erodes much faster than investors expected.
+              </p>
+              <p>
+                Add negative-price hours, and your LCOE spreadsheet stops making sense. That’s cannibalization.
+              </p>
+              <span class="badge-danger">If we ignore it, the RES build-out stalls.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- WHY IT MATTERS -->
+      <section id="impact">
+        <div class="section-grid">
+          <div>
+            <div class="section-eyebrow">Why it’s not “just a pricing quirk”</div>
+            <h2 class="section-title">You think RES cannibalization is <span>not that scary</span>?</h2>
+            <p class="big-text">
+              It is – because it attacks exactly the things policy-makers and system operators care about: investment appetite,
+              system stability and meeting climate targets on time.
+            </p>
+            <ul class="problem-list">
+              <li>Investors lose interest in RES projects when revenue volatility explodes.</li>
+              <li>Grid instability rises – dispatch risk increases for everyone.</li>
+              <li>RES deployment targets look good on paper but become hard to finance.</li>
+              <li>We still lack storage and demand-side flexibility at scale.</li>
+            </ul>
+            <div class="highlight-row">
+              <div class="highlight-bad">RES should be good – not bad – for the energy market.</div>
+            </div>
+          </div>
+          <div>
+            <div class="section-card">
+              <h3>The real-world consequence</h3>
+              <p>
+                When project IRRs fall below expectations, projects don’t just “adjust” – they get cancelled,
+                delayed or quietly disappear from the pipeline.
+              </p>
+              <p>
+                That’s a risk not only for investors, but for security of supply and decarbonisation timelines.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FAILED SOLUTIONS -->
+      <section id="failed">
+        <div class="section-eyebrow">What we’ve already tried</div>
+        <h2 class="section-title">Existing market “solutions” – why they <span>don’t fix</span> cannibalization.</h2>
+        <div class="split">
+          <div>
+            <p class="big-text">
+              Over the last decade, we’ve stacked policy tools on top of energy-only markets. Many helped in the early days,
+              but none were designed for a high-RES, cannibalization-prone system.
+            </p>
+            <div class="solutions-list">
+              <div class="solution-pill"><strong>FiTs &amp; FiPs</strong> – decoupled RES from market value.</div>
+              <div class="solution-pill"><strong>CfDs</strong> – stabilised revenue, but deepen price suppression.</div>
+              <div class="solution-pill"><strong>Capacity payments</strong> – increase system costs.</div>
+              <div class="solution-pill"><strong>Curtailment</strong> – literally wastes renewable energy.</div>
+              <div class="solution-pill"><strong>Priority dispatch</strong> – amplifies oversupply and instability.</div>
+            </div>
+            <div class="highlight-row">
+              <div class="highlight-bad">Not working.</div>
+              <div class="highlight-bad">Real solution needed.</div>
+            </div>
+          </div>
+          <div>
+            <div class="section-card soft">
+              <h3>So what needs to change?</h3>
+              <p>
+                Instead of pretending energy-only prices can carry all the risk, we need assets that absorb volatility
+                and monetise flexibility – not just MWh.
+              </p>
+              <p>
+                That’s where storage, smarter market signals and new service business models come in.
+              </p>
+              <span class="badge-accent">Enter storage as a first-class market player.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REAL SOLUTION -->
+      <section id="solution">
+        <div class="section-eyebrow">Real solution</div>
+        <h2 class="section-title">We need more <span>storage</span> in the market – not more band‑aids.</h2>
+        <div class="section-grid">
+          <div>
+            <p class="big-text">
+              Our core thesis is simple: in high-RES systems, you don’t fix cannibalization with yet another support scheme.
+              You fix it by adding assets that can shift energy in time and sell flexibility when the system needs it most.
+            </p>
+            <ul class="problem-list">
+              <li><strong>Flexible market:</strong> storage that responds to real-time prices and system needs.</li>
+              <li><strong>Dynamic pricing:</strong> signals that reward shifting consumption and charging patterns.</li>
+              <li><strong>Smarter forecasting:</strong> combining RES output, congestion and balancing needs.</li>
+            </ul>
+            <div class="highlight-row">
+              <div class="highlight-good">Storage turns cannibalization into an opportunity.</div>
+            </div>
+          </div>
+          <div>
+            <div class="section-card soft">
+              <h3><span>BatteryStrategy</span> in one sentence</h3>
+              <p>
+                We design, de-risk and deliver battery storage projects that monetize volatility instead of being
+                destroyed by it – starting with the Baltics.
+              </p>
+              <p>
+                From first spreadsheet to commissioning, we stay focused on one question: does this asset truly earn
+                its keep in a cannibalised market?
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VALUE PROPOSITION -->
+      <section id="value">
+        <div class="section-eyebrow">What we actually offer</div>
+        <h2 class="section-title">BatteryStrategy – our <span>value proposal</span> in practice.</h2>
+        <div class="value-grid">
+          <div>
+            <div class="section-card">
+              <h3>BatteryStrategy as a service (SPR)</h3>
+              <ul class="value-list">
+                <li>Consulting for B2B and B2C clients entering storage &amp; flexibility markets.</li>
+                <li>All‑inclusive project management – from planning to setup and operations.</li>
+                <li>Mission: bring more bankable storage to the Baltic power system <strong>ASAP</strong>.</li>
+                <li>We make it <strong>simple</strong> – clear narratives and structures for decision‑makers.</li>
+                <li>We make it <strong>profitable</strong> – built on capture price, not average price.</li>
+                <li>We make it <strong>repeatable</strong> – templates, playbooks and scalable processes.</li>
+                <li>Our home market: <strong>Baltics</strong> – focused initially on energy &amp; capacity markets for balancing services.</li>
+              </ul>
+            </div>
+          </div>
+          <div>
+            <div class="section-card soft">
+              <h3>Who is this for?</h3>
+              <p>
+                Developers, investors and large consumers who:
+              </p>
+              <ul class="value-list">
+                <li>See negative-price hours in their data and want to do something about it.</li>
+                <li>Are considering storage but don’t yet trust the business case.</li>
+                <li>Need a partner who speaks both engineering and market design.</li>
+              </ul>
+              <p class="side-note">
+                If that sounds like you, we’d love to talk – especially if you are planning investments in 2025–2027.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section id="cta">
+        <div class="cta">
+          <div class="section-eyebrow">Action</div>
+          <h2>BatteryStrategy fundraising happens in Q2&nbsp;2025.</h2>
+          <p>
+            We’re preparing an early fundraising round to validate our theses with real assets and partners.
+            If you’d like to get the invite to our online session, leave your email and we’ll be in touch.
+          </p>
+          <div class="cta-actions">
+            <a href="mailto:hello@batterystrategy.example?subject=Fundraising%20Q2%202025" class="btn-primary">
+              Join the invite list
+            </a>
+            <a href="#top" class="btn-ghost">
+              Back to the top
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Built for <strong>MNI5160</strong> and extended into a living concept.</span>
+      <span>BatteryStrategy · Baltics · 2025</span>
+    </footer>
+  </div>
+</body>
+</html>
