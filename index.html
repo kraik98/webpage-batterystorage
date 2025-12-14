@@ -113,6 +113,16 @@
       box-shadow: 0 0 14px rgba(61,255,142,0.8);
     }
 
+    .logo-image {
+      width: 46px;
+      height: 46px;
+      object-fit: cover;
+      object-position: left center;
+      border-radius: 14px;
+      flex: 0 0 auto;
+      filter: drop-shadow(0 0 8px rgba(61,255,142,0.25));
+    }
+
     .logo-text-main {
       font-weight: 700;
       letter-spacing: 0.03em;
@@ -177,6 +187,12 @@
       border-radius: 50%;
       background: var(--accent);
       box-shadow: 0 0 8px rgba(61,255,142,0.9);
+    }
+
+    /* LOGO SAFETY */
+    .nav img {
+      max-height: 42px;
+      width: auto;
     }
 
     main {
@@ -783,24 +799,21 @@
     .footer span strong {
       color: var(--accent);
     }
-
     @media (max-width: 960px) {
       .hero {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: 1fr;
       }
+
+      /* Pane visuaalid teksti JÄRELE (mitte ette) */
       .hero-visual {
-        order: -1;
+        order: 0;                       /* <-- oli -1 */
+        grid-template-columns: 1fr;     /* <-- 2 veeru asemel 1 */
+        align-items: stretch;
       }
-      .hero-card {
-        min-height: 260px;
-      }
-      section {
-        padding: 64px 0;
-      }
-      .section-grid,
-      .split,
-      .value-grid {
-        grid-template-columns: minmax(0, 1fr);
+
+      /* Et parempoolne kaart käituks normaalselt ja ei pressiks */
+      .floating-card {
+        min-height: auto;
       }
     }
 
@@ -852,7 +865,7 @@
     <header class="nav">
       <div class="nav-inner">
         <div class="logo-mark">
-          <div class="logo-dot"></div>
+          <img src="logo.png" alt="BatteryStrategy logo" class="logo-image" />
           <div>
             <div class="logo-text-main">BatteryStrategy</div>
             <div class="logo-text-sub">RES cannibalization fix</div>
